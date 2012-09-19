@@ -1,0 +1,313 @@
+#! /usr/bin/env python
+############################################################
+#                                                          #
+#                           osssm                          #
+#                                                          #
+############################################################
+#
+# author:    mpuel@in2p3.fr
+# date:      lundi 23 avril 2012, 13:17:15 (UTC+0200)
+# copyright: Copyright (c) by IN2P3 computing centre, Villeurbanne (Lyon), France
+#
+# usage:  osssm
+#
+# purpose:
+#  * implements Openstack accounting connector for APEL/SSM
+# 
+# comments:
+#  * extract data using Openstack Nova API
+#  * configured with /etc/osssmrc
+#  * outputs logging into the file configured as "logfile_path"
+#  * forwards extracted data to SSM
+
+
+import base64
+import urllib
+import httplib
+import json
+import os
+import ConfigParser
+import logging
+import time
+import datetime
+import urlparse
+import pprint
+import copy
+
+
+# translate openstack statuses to EGI FCTF WG4 ones
+openstack_vm_statuses = {
+    'unknown':     'started',
+    'active':      'started',
+    'saving':      'started',
+    'paused':      'paused',
+    'suspended':   'suspended',
+    'error':       'error',
+    'deleted':     'completed',
+    'shutoff':     'completed',
+    'terminated' : 'completed',
+}
+nullValue = 'NULL'
+orderedFields = [ 'RecordId', 'SiteName', 'ZoneName', 'MachineName', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendTime', 'TimeZone', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
+stu_date_format = '%Y-%m-%d %H:%M:%S.0'
+dummy_token = '#####################'
+
+# process a request to nova API and returns the result as a json structure
+def get_json_response( conn, request, params ):
+
+    if params != {}:
+        request += "?" + urllib.urlencode( params )
+    logging.debug("sending request <GET %s>" % request)
+    conn.request("GET", request, urllib.urlencode({}), headers )
+    
+    response = conn.getresponse()
+    logging.debug('response received')
+    data = response.read()
+    logging.debug(data)
+
+    # return json structure
+    return json.loads( data )
+
+
+# returns a dict of available images to user of id userid
+# { 'image_id' => 'image_name', ... }
+def get_images_ids( conn, userid, instances ):
+    images = {}
+    logging.debug("retrieving available images ids")
+
+    for image in get_json_response( conn, "%s/%s/images" % ( url_path, userid ), {} )['images']:
+        logging.debug("found image <name=%s, id=%s>" % ( image['name'], image['id']) )
+        images[image['id']] = image['name']
+
+    # check for instances images ids (may be some deleted)
+    # this should be possible in previous request according to api documentation but does not work
+    for instance in instances['servers']:
+        imid = str(instance['image']['id'])
+        if not images.has_key( instance['image']['id'] ):
+            logging.debug("image is no more available, request detailed information")
+            try:
+                imname = get_json_response( conn, "%s/%s/images/%s" % ( url_path, userid, imid ), {} )['image']['name']
+                images[imid] = imname
+                logging.debug("found image <name=%s, id=%s>" % ( imname, imid ) )
+            except:
+                logging.debug("no available information for instance image, skip")
+                images[imid] = "unavailable"
+                
+
+    logging.debug( "available images: %s" + str(images) )
+    return images
+
+
+# returns a dict of tenants and their ids (and reversed)
+# { "tenant_name" => "tenant_id, "tenant_id" => "tenant_name"... }
+def get_tenants_ids( keystone_api_url, token ):
+    logging.debug("retrieving tenants ids")
+    urlparsed = urlparse.urlparse( keystone_api_url )
+    url = urlparsed[1]
+    url_path = urlparsed[2]
+
+    headers = { "X-Auth-Token": token, "Content-type": "application/json" }
+    conn = httplib.HTTPConnection( url )
+
+    # check api server
+    request = "%s/%s" % (url_path,"tenants")
+    conn.request("GET", request, urllib.urlencode({}), headers )
+    respjson = json.loads( (conn.getresponse()).read() )
+    logging.debug( "JSON response received: %s" % respjson )
+
+    tenants = {}
+    for tenant in respjson['tenants']:
+        logging.debug("found tenant <name=%s, id=%s>" % ( tenant['name'], tenant['id']) )
+        tenants[tenant['id']] = tenant['name']
+        # add reverse entry
+        tenants[tenant['name']] = tenant['id']
+
+    return tenants
+
+
+# process json entries and returns what has to be output to SSM
+def compute_extract( usages, details, config, images, tenants ):
+    extract = {}
+    now = datetime.datetime.now()
+
+    logging.debug('extracting data from "extras/usage" query')
+    for instance in usages['tenant_usage']['server_usages']:
+        logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
+
+        # we only want to account running VMs
+        if instance['ended_at'] != None:
+            logging.debug('skipping completed VM <%s>' % instance['name'])
+            continue
+
+        started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
+        delta = now - started
+        extract[instance['name']] = {
+                'RecordId':           nullValue,
+                'SiteName':           config['gocdb_sitename'],
+                'ZoneName':           config['zone_name'],
+                'MachineName':        instance['name'], 
+                'LocalUserId':        nullValue,
+                'LocalGroupId':       nullValue,
+                'GlobalUserName':     nullValue,
+                'FQAN':               nullValue,
+                'StartTime':          started.strftime("%s"),
+                'EndTime':            nullValue, 
+                'SuspendTime':        nullValue,
+                'TimeZone':           time.tzname[1] if time.daylight != 0 else time.tzname[0],
+                'WallDuration':       delta.seconds + delta.days * 24 * 3600,
+                'CpuDuration':        int(instance['hours']),
+                'CpuCount':           instance['vcpus'],
+                'NetworkType':        nullValue,
+                'NetworkInbound':     nullValue,
+                'NetworkOutbound':    nullValue,
+                'Memory':             instance['memory_mb'],
+                'Disk':               instance['local_gb'],
+                'StorageRecordId':    nullValue,
+                'ImageId':            nullValue,
+                'CloudType':          config['cloud_type'],
+                }
+        try:
+            extract[instance['name']]['Status'] = openstack_vm_statuses[instance['state']]
+        except:
+            logging.error( "unknown state <%s>" % instance['state'] )
+            extract[instance['name']]['Status'] = 'unknown'
+
+    logging.debug('extracting data from "servers/detail" query')
+    for instance in details['servers']:
+        logging.debug('extracting data for instance %s server detail: %s' % (instance['name'], instance))
+        try:
+            extract[instance['name']]['RecordId'] = time.strftime("%Y-%m-%d %H:%M:%S%z") + ' ' + config['gocdb_sitename'] + ' ' + instance['name']
+            extract[instance['name']]['LocalUserId'] = instance['user_id']
+            extract[instance['name']]['LocalGroupId'] = tenants[instance['tenant_id']]
+        except:
+            logging.info("instance <%s> has no usage records available" % instance['name'] )
+            if extract.has_key(instance['name']):
+                del extract[instance['name']]
+            continue
+        try:
+            imid = str(instance['image']['id'])
+            extract[instance['name']]['ImageId'] = images[imid]
+        except:
+            logging.debug( "image id=%s not available in glance anymore" % imid )
+            extract[instance['name']]['ImageId'] = imid
+
+    # delete dummy records
+    for instance in extract.keys():
+        if extract[instance]['RecordId'] == nullValue or extract[instance]['SiteName'] == nullValue or extract[instance]['MachineName'] == nullValue:
+            logging.warning('filtered instance <%s> because of bad RecordId=<%s>, Sitename=<%s>, MachineName=<%s>' % (instance,  extract[instance]['RecordId'],  extract[instance]['SiteName'],  extract[instance]['MachineName']))
+            del extract[instance]
+
+    return extract
+
+
+# forwards nova extract to SSM
+def write_to_ssm( extract, config ):
+
+    output = config['ssm_input_header'] + "\n"
+
+    # itterate over VMs
+    for vmname in extract.keys():
+        logging.debug("generating ssm input file for VM %s" % vmname)
+        for item in orderedFields:
+            logging.debug("generating record %s: %s" % (item, extract[vmname][item]) )
+            output += "%s: %s\n" % ( item, extract[vmname][item] )
+        output += config['ssm_input_sep'] + "\n"
+
+    # write file
+    f = open( config['ssm_input_path'], 'w' )
+    f.write(output)
+    f.close()
+
+
+
+
+
+
+# MAIN routine
+
+# parse configuration file
+conf = ConfigParser.ConfigParser()
+conf.read( [ '/etc/osssmrc', os.path.expanduser('~/.osssmrc') ] )
+config = {}
+for item in ( 
+    'token', 
+    'nova_api_url', 
+    'keystone_api_url', 
+    'logfile_path', 
+    'debug_level', 
+    'tenants', 
+    'gocdb_sitename', 
+    'zone_name', 
+    'cloud_type', 
+    'ssm_input_header', 
+    'ssm_input_sep', 
+    'ssm_input_path' 
+    ):
+    config[item] = conf.get( 'Main', item )
+
+# setup logging
+debugLevels = { 'INFO': logging.INFO, 'DEBUG': logging.DEBUG }
+logging.basicConfig( filename=os.path.expanduser(config['logfile_path']), filemode='a', level=debugLevels[config['debug_level']], format="%(asctime)s %(levelname)s %(message)s", datefmt='%c')
+logging.info('extraction of records started')
+loggedconf = copy.copy(config)
+# do not log tokens
+loggedconf['token'] = dummy_token
+logging.debug( 'configuration: %s' % pprint.pformat( loggedconf ) )
+
+
+# setup connection
+headers = { "X-Auth-Token":config['token'], "Content-type":"application/json" }
+loggedhead = copy.copy(headers)
+# do not log tokens
+loggedhead["X-Auth-Token"] = dummy_token
+logging.debug( "setting headers to <%s>" % loggedhead )
+urlp = urlparse.urlparse( config['nova_api_url'] )
+url = urlp[1]
+url_path = urlp[2]
+
+logging.debug('initiating connection to %s' % url)
+conn = httplib.HTTPConnection( url )
+
+# log API version and release date
+api_version = get_json_response( conn, "%s/" % url_path, {} )
+logging.info( "nova API version: %s, updated on %s" % (api_version['version']['id'], api_version['version']['updated']) )
+
+# what tenants are we looking at
+tenants = get_tenants_ids( config['keystone_api_url'], config['token'] )
+tenants_ids = []
+for tenant in config['tenants'].split(','):
+    # remove eventual whitespaces
+    tenant = tenant.strip()
+    logging.debug("tenant: %s, id: %s" % (tenant, tenants[tenant]))
+    tenants_ids += [tenants[tenant]]
+logging.debug("retrieved tenants: %s" % tenants_ids )
+
+# loop over configured tenants
+extract = {}
+for id in tenants_ids:
+
+    logging.debug( 'extracting accounting for tenant_id %s' % id )
+
+    # get instances usages
+    period_start = time.strftime( stu_date_format, time.gmtime(0))
+    logging.debug( 'extracting records since: %s' % period_start )
+    usages = get_json_response( conn, "%s/%s/os-simple-tenant-usage/%s" % ( url_path, id, id ), { "start": period_start } )
+
+    # get instances details
+    details = get_json_response( conn, "%s/%s/servers/detail" % ( url_path, id ), {}) 
+
+    # get images ids/names available to that user
+    images = get_images_ids( conn, id, details )
+
+    # translate ids
+    if len(usages['tenant_usage']) != 0 and len(details['servers']) != 0:
+        extract.update( compute_extract( usages, details, config, images, tenants ) )
+    else:
+        logging.info('no usage records for tenant <%s>' % tenants[id])
+
+
+logging.debug('closing connection')
+conn.close()
+
+write_to_ssm( extract, config )
+logging.info('records successfully wrote to SSM file <%s>' % config['ssm_input_path'])

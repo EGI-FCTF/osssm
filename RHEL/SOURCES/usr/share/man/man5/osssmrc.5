@@ -1,0 +1,66 @@
+.\"Created with GNOME Manpages Editor
+.\"http://sourceforge.net/projects/gmanedit2
+
+.\"Replace <program> with the program name, x with the Section Number
+.TH osssmrc 5 "2012/04/28" "" 
+.SH NAME
+osssmrc \- APEL/SSM Openstack connector (osssm) configuration file
+
+.SH DESCRIPTION
+This manual describes the configuration items of the APEL/SSM Openstack connector.
+
+.SH CONFIGURATION PARAMETERS
+The configuration file is made of a single section [Main].
+
+.IP \fBnova_api_url\fR
+  Openstack nova API access URL
+  example: http://host.domain.tld:portnumber/v2
+
+.IP \fBkeystone_api_url\fR
+  Openstack keystone access URL
+  example: http://host.domain.tld:portnumber/v2.0
+
+.IP \fBtoken\fR
+  API token configured in keystone. That token has to provide access to all tenants configured.
+
+.IP \fBlogfile_path\fR
+  path to osssm logfile
+  example: /var/log/osssm.log
+
+.IP \fBdebug_level\fR
+  set the logging level
+  example: DEBUG|INFO
+
+.IP \fBtenants\fR
+  keystone tenants for which VM accounting has to be retrieved, separated by commas. Whitespaces are allowed in tenant names.
+  example: a first tenant, a second one
+ 
+.IP \fBgocdb_sitename\fR
+  the sitename reported into the accounting records. It should match the GOCDB sitename.
+
+.IP \fBzone_name\fR
+  location
+  example: EU|US|...
+
+.IP \fBcloud_type\fR
+  cloud manager reported into the accounting records 
+  example: Openstack
+
+.IP \fBssm_input_header\fR
+  the header of the SSM input file
+  example: APEL-cloud-message: v0.1
+
+.IP \fBssm_input_sep\fR
+  the records separator used in the SSM input file
+  example: %%
+
+.IP \fBssm_input_path\fR
+  path to the SSM input file
+  example: /opt/apel/ssm/messages/outgoing/osssm
+
+.SH "AUTHOR(S)"
+.na
+.nf
+Mattieu Puel @ CC-IN2P3 FR
+
+

@@ -1,0 +1,22 @@
+[Main]
+nova_api_url = http://###NOVA_URL###:###PORT###/v2
+keystone_api_url = http://###KEYSTONE_HOSTNAME###:###PORT###/v2.0
+token = ###API_TOKEN###
+logfile_path = /var/log/apel/osssm.log
+
+# may be DEBUG|INFO
+debug_level = INFO
+
+# tenants names for which VM accounting should be extracted
+tenants = egi-fctf
+
+gocdb_sitename = ###SITENAME###
+
+# location (EU, US...)
+zone_name = ###ZONE###
+cloud_type = Openstack
+
+# SSM related
+ssm_input_header = APEL-cloud-message: v0.1
+ssm_input_sep = %%
+ssm_input_path = /opt/apel/ssm/messages/outgoing/openstack
