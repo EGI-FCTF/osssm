@@ -1,0 +1,52 @@
+#! /usr/bin/env python
+"""
+usage:  osssm.push
+
+purpose:
+ * push spooled Openstack accounting into APEL/SSM server
+ 
+comments:
+ * configured with /etc/osssmrc
+ * outputs logging into the file configured as "logfile_path"
+ * reads the spool file and forwards extracted data to SSM
+ * delete from spool file terminated VMs
+"""
+
+from osssm import *
+
+
+# parse configuration file
+conf = ConfigParser.ConfigParser()
+conf.read( [ '/etc/osssmrc', os.path.expanduser('~/.osssmrc') ] )
+config = {}
+for item in ( 
+    'user',
+    'password',
+    'keystone_api_url', 
+    'logfile_path', 
+    'debug_level', 
+    'tenants', 
+    'gocdb_sitename', 
+    'zone_name', 
+    'cloud_type', 
+    'ssm_input_header', 
+    'ssm_input_sep', 
+    'ssm_input_path',
+    'spoolfile_path'
+    ):
+    config[item] = conf.get( 'Main', item )
+
+# setup logging
+debugLevels = { 'INFO': logging.INFO, 'DEBUG': logging.DEBUG }
+logging.basicConfig( filename=os.path.expanduser(config['logfile_path']), filemode='a', level=debugLevels[config['debug_level']], format="%(asctime)s %(levelname)s %(message)s", datefmt='%c')
+loggedconf = copy.copy(config)
+# do not log tokens
+loggedconf['password'] = dummy
+logging.debug( 'configuration: %s' % pprint.pformat( loggedconf ) )
+
+# read spooled usage records
+spooled_ur = get_spooled_urs( config )
+
+# forward to SSM
+write_to_ssm( spooled_ur, config )
+logging.info('records successfully wrote to SSM file <%s>' % config['ssm_input_path'])

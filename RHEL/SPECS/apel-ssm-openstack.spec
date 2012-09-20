@@ -1,6 +1,6 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.10
+Version: 1.11
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -30,12 +30,17 @@ rsync --exclude .svn -av %{_sourcedir}/ $RPM_BUILD_ROOT/
 
 %files
 %defattr(0755,root,root)
-/usr/bin/osssm
+/usr/bin/osssm.extract
+/usr/bin/osssm.push
 /etc/rc.d/init.d/osssm
 %defattr(0644,root,root)
+/etc/logrotate.d/osssm
 /var/lib/osssm/cron
+/usr/lib/python2.6/site-packages/osssm.py
+/usr/lib/python2.6/site-packages/osssm.pyc
 %defattr(0755,apel,apel)
 /var/log/apel
+/var/spool/osssm
 %attr(0600,apel,apel)
 %config(noreplace) /etc/osssmrc
 %doc
@@ -61,6 +66,10 @@ true
 
 
 %changelog
+* Thu Sep 20 2012 Mattieu Puel 1.11-1
+- dissociated usage records extraction and forwarding to SSM processes
+- added support for ended VMs status upload
+- added log rotation
 * Thu Sep 20 2012 Mattieu Puel 1.10-1
 - no more API token, use safer user/password (obsoletes token configuration option)
 - added configurations options "user" and "password"

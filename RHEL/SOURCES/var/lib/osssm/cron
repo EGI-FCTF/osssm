@@ -1,2 +1,5 @@
-0 * * * * osssm /usr/bin/osssm
+# extract and buffer usage records
+* * * * * apel /usr/bin/osssm.extract
 
+# send buffered usage records to APEL/SSM 
+0 * * * * apel /usr/bin/osssm.push

@@ -1,0 +1,6 @@
+/var/log/apel/osssm.log {
+    missingok
+    notifempty
+    size 100k
+    create 0644 apel apel
+}
