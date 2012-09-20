@@ -1,6 +1,6 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.9
+Version: 1.10
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -61,6 +61,10 @@ true
 
 
 %changelog
+* Thu Sep 20 2012 Mattieu Puel 1.10-1
+- no more API token, use safer user/password (obsoletes token configuration option)
+- added configurations options "user" and "password"
+- nova api URL is now requested to keystone catalog (obsoletes nova_api_url configuration option)
 * Mon Sep 10 2012 Mattieu Puel 1.9-1
 - logging of nova API verion and date
 - corrected failure when instanciated image is not available anymore in glance

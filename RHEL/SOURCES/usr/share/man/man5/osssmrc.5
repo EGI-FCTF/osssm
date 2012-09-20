@@ -12,16 +12,15 @@ This manual describes the configuration items of the APEL/SSM Openstack connecto
 .SH CONFIGURATION PARAMETERS
 The configuration file is made of a single section [Main].
 
-.IP \fBnova_api_url\fR
-  Openstack nova API access URL
-  example: http://host.domain.tld:portnumber/v2
-
 .IP \fBkeystone_api_url\fR
   Openstack keystone access URL
   example: http://host.domain.tld:portnumber/v2.0
 
-.IP \fBtoken\fR
-  API token configured in keystone. That token has to provide access to all tenants configured.
+.IP \fBuser\fR
+  User used for accessing Nova API. That user has to be part of all tenants for which accounting is requested with a role allowing to retrieve usage records (rule compute_extension:simple_tenant_usage:list in /etc/nova/policy.json).
+
+.IP \fBpassword\fR
+  Password for accounting user 
 
 .IP \fBlogfile_path\fR
   path to osssm logfile
