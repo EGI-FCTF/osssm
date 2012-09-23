@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 #
 # osssm service 
 #
@@ -8,28 +8,44 @@
 # description: APEL/SSM Openstack connector 
 #
 # config: /etc/osssmrc
+# compatible to debian systems
 
-source /etc/rc.d/init.d/functions
+# for debian systems, reimplement some functions
+success()
+{
+    echo -n "ok"
+}
+
+failure()
+{
+    echo -n "error"
+    return 1
+}
+
+[ -e /etc/rc.d/init.d/functions ] && source /etc/rc.d/init.d/functions
 cron_template=/var/lib/osssm/cron
 cron_target=/etc/cron.d/osssm
 prog=osssm
-
+[ -e /etc/init.d/crond ] && cronserv=crond || cronserv=cron
 
 RETVAL=0
 desc="Openstack EGI accounting"
 
 start() {
         echo -n $"Starting $desc: "
+
+        id apel &> /dev/null || { echo "apel user missing, check ssm installation, abort"; return 1; }
+
         install -m 444 $cron_template $cron_target
         RETVAL=$?
 
-        service crond reload &> /dev/null
+        service $cronserv reload &> /dev/null
         let RETVAL+=$?
 
         [ $RETVAL -eq 0 ] && success || failure
         echo
 
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+        [ -e /var/lock/subsys -a $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
         return $RETVAL
 }
 
@@ -38,12 +54,12 @@ stop() {
         rm -f $cron_target
         RETVAL=$?
 
-        service crond reload &> /dev/null
+        service $cronserv reload &> /dev/null
         let RETVAL+=$?
 
         [ $RETVAL -eq 0 ] && success || failure
-        echo
-        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+        echo        
+        [ -e /var/lock/subsys -a $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
         return $RETVAL
 }
 

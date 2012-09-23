@@ -12,6 +12,9 @@ comments:
  * delete from spool file terminated VMs
 """
 
+import sys
+sys.path.append('/usr/share/pyshared')
+
 from osssm import *
 
 

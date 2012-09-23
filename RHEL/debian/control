@@ -1,0 +1,14 @@
+Source: apel-ssm-openstack
+Section: unknown
+Priority: extra
+Maintainer: Mattieu Puel <mpuel@in2p3.fr>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.2
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Git: git://git.debian.org/collab-maint/apel-ssm-openstack.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/apel-ssm-openstack.git;a=summary
+
+Package: apel-ssm-openstack
+Architecture: all
+Depends: ${misc:Depends}
+Description: APEL/SSM Openstack connector for EGI cloud accounting system

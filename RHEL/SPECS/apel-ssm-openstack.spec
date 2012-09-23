@@ -36,8 +36,7 @@ rsync --exclude .svn -av %{_sourcedir}/ $RPM_BUILD_ROOT/
 %defattr(0644,root,root)
 /etc/logrotate.d/osssm
 /var/lib/osssm/cron
-/usr/lib/python2.6/site-packages/osssm.py
-/usr/lib/python2.6/site-packages/osssm.pyc
+/usr/share/pyshared/osssm.py
 %defattr(0755,apel,apel)
 /var/log/apel
 /var/spool/osssm
@@ -50,16 +49,12 @@ rsync --exclude .svn -av %{_sourcedir}/ $RPM_BUILD_ROOT/
 
 
 %post
-useradd -c "openstack accounting user" -M -d /var/empty -s /sbin/nologin osssm
-install -m 644 -o osssm -g osssm /dev/null /var/log/osssm.log
-
 # add the disabled service
 chkconfig --add osssm
 chkconfig osssm off
 
 
 %postun
-userdel osssm
 # remove the service
 chkconfig --del osssm
 true

@@ -12,6 +12,13 @@ comments:
  * spool data to "spoolfile_path" for further use by osssm.push
 """
 
+import ConfigParser
+import os
+import sys
+import logging
+import copy
+
+sys.path.append('/usr/share/pyshared')
 from osssm import *
 
 
@@ -46,6 +53,8 @@ loggedconf['password'] = dummy
 logging.debug( 'configuration: %s' % pprint.pformat( loggedconf ) )
 
 
+# get spooled urs
+spooled_urs = get_spooled_urs( config )
 
 # loop over configured tenants
 extract = {}
@@ -78,7 +87,7 @@ for tenant in tenants:
 
     # translate ids
     if len(usages['tenant_usage']) != 0 and len(details['servers']) != 0:
-        extract.update( compute_extract( usages, details, config, images, tenant ) )
+        extract.update( compute_extract( usages, details, config, images, tenant, spooled_urs ) )
     else:
         logging.info('no usage records for tenant <%s>' % tenant)
 
@@ -86,5 +95,8 @@ for tenant in tenants:
 logging.debug('closing connection')
 conn.close()
 
+# merge to spooled usage records
+merged = merge_records( extract, config )
+
 # write usage records to spool file
-write_to_spool( extract, config )
+write_to_spool( merged, config )

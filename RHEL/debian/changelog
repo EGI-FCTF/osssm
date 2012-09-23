@@ -1,0 +1,7 @@
+apel-ssm-openstack (1.11) unstable; urgency=low
+
+  * dissociated usage records extraction and forwarding to SSM processes
+  * added support for ended VMs status upload
+  * added log rotation
+
+ -- Mattieu Puel <mpuel@in2p3.fr>  Sun, 23 Sep 2012 10:41:10 +0200
