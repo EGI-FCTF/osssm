@@ -1,6 +1,6 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.11
+Version: 1.12
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -61,6 +61,8 @@ true
 
 
 %changelog
+* Tue Oct 23 2012 Mattieu Puel 1.12-1
+- do not forward empty URs to SSM
 * Thu Sep 20 2012 Mattieu Puel 1.11-1
 - dissociated usage records extraction and forwarding to SSM processes
 - added support for ended VMs status upload

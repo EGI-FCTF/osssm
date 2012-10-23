@@ -201,21 +201,25 @@ def compute_extract( usages, details, config, images, tenant, spooled_urs ):
 
 def write_to_ssm( extract, config ):
     """forwards usage records to SSM"""
+    
+    # only write non void URs file
+    if len(extract) > 0:
+        output = config['ssm_input_header'] + "\n"
 
-    output = config['ssm_input_header'] + "\n"
+        # itterate over VMs
+        for vmname in extract.keys():
+            logging.debug("generating ssm input file for VM %s" % vmname)
+            for item in orderedFields:
+                logging.debug("generating record %s: %s" % (item, extract[vmname][item]) )
+                output += "%s: %s\n" % ( item, extract[vmname][item] )
+            output += config['ssm_input_sep'] + "\n"
 
-    # itterate over VMs
-    for vmname in extract.keys():
-        logging.debug("generating ssm input file for VM %s" % vmname)
-        for item in orderedFields:
-            logging.debug("generating record %s: %s" % (item, extract[vmname][item]) )
-            output += "%s: %s\n" % ( item, extract[vmname][item] )
-        output += config['ssm_input_sep'] + "\n"
-
-    # write file
-    f = open( config['ssm_input_path'], 'w' )
-    f.write(output)
-    f.close()
+        # write file
+        f = open( config['ssm_input_path'], 'w' )
+        f.write(output)
+        f.close()
+    else:
+        logging.debug('no usage records, skip forwarding to SSM')
 
 
 def write_to_spool( extract, config ):
