@@ -50,7 +50,10 @@ def get_access_details( keystone_api_url, username, password, tenant ):
     url_path = urlparsed[2]
 
     params = '{ "auth": { "passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName": "%s"}}' % (username, password, tenant)
-    conn = httplib.HTTPConnection( url )
+    if urlparsed[0] == "https":                                                                        
+        conn = httplib.HTTPSConnection( url )                                                          
+    else:                                                                                              
+        conn = httplib.HTTPConnection( url )          
 
     # request for a token
     request = "%s/%s" % (url_path,"tokens")
@@ -134,7 +137,7 @@ def compute_extract( usages, details, config, images, tenant, spooled_urs ):
         logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
 
         # skip already accounted ended VMs
-        if instance['ended_at'] != None and spooled_urs.has_key(instance['name']) and spooled_urs[instance['name']]['Endtime'] != None:
+        if instance['ended_at'] != None and spooled_urs.has_key(instance['name']) and spooled_urs[instance['name']]['EndTime'] != None:
             logging.debug('skip ended VM <%s>' % instance['name'])
             continue
 
