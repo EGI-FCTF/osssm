@@ -1,3 +1,7 @@
+* Mon Oct 29 2012 Mattieu Puel 1.13-1
+- support for https keystone
+* Tue Oct 23 2012 Mattieu Puel 1.12-1
+- do not forward empty URs to SSM 
 * Thu Sep 20 2012 Mattieu Puel 1.11-1
 - dissociated usage records extraction and forwarding to SSM processes
 - added support for ended VMs status upload
