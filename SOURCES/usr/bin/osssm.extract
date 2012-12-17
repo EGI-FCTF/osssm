@@ -65,11 +65,15 @@ for tenant in tenants:
     if url == None or token == None or tenant_id == None:
         logging.error("skipping tenant <%s> usage records" % tenant)
         continue
+
     urlp = urlparse.urlparse( url )
     url = urlp[1]
     url_path = urlp[2]
     headers = { "X-Auth-Token": token, "Content-type":"application/json" }
-    conn = httplib.HTTPConnection( url )
+    if urlp[0] == "https":
+        conn = httplib.HTTPSConnection( url )
+    else:
+        conn = httplib.HTTPConnection( url )
     logging.debug('initiating connection to %s' % url)
 
     logging.debug( 'extracting accounting for tenant %s' % tenant )

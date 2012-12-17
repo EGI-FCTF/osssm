@@ -1,6 +1,6 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.13
+Version: 1.14
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -61,6 +61,8 @@ true
 
 
 %changelog
+* Mon Dec 17 2012 Mattieu Puel 1.14-1
+- support for https nova-api
 * Mon Oct 29 2012 Mattieu Puel 1.13-1
 - support for https keystone
 * Tue Oct 23 2012 Mattieu Puel 1.12-1
