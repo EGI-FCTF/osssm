@@ -1,3 +1,11 @@
+apel-ssm-openstack (1.15) unstable; urgency=low
+
+  * optimization: do not extract all urs from nova since epoch 
+  * configuration parameter: spoolfile_path changed to spooldir_path
+  * store VMs in the spool per id and not vm name, relies on Folsom/Grizzly code
+  * support for ended/error VMs URs upload
+
+ -- mattieu puel <mpuel@in2p3.fr>  fri, 28 dec 2012 16:00:10 +0200	
 apel-ssm-openstack (1.14) unstable; urgency=low
 
   * support for https nova-api

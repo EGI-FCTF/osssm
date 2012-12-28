@@ -1,6 +1,6 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.14
+Version: 1.15
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -61,6 +61,11 @@ true
 
 
 %changelog
+* Fri Dec 28 2012 Mattieu Puel 1.15-1
+- optimization: do not extract all urs from nova since epoch 
+- configuration parameter: spoolfile_path changed to spooldir_path
+- store VMs in the spool per id and not vm name, relies on Folsom/Grizzly code
+- support for ended/error VMs URs upload
 * Mon Dec 17 2012 Mattieu Puel 1.14-1
 - support for https nova-api
 * Mon Oct 29 2012 Mattieu Puel 1.13-1
@@ -69,7 +74,6 @@ true
 - do not forward empty URs to SSM
 * Thu Sep 20 2012 Mattieu Puel 1.11-1
 - dissociated usage records extraction and forwarding to SSM processes
-- added support for ended VMs status upload
 - added log rotation
 * Thu Sep 20 2012 Mattieu Puel 1.10-1
 - no more API token, use safer user/password (obsoletes token configuration option)

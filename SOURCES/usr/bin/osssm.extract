@@ -9,7 +9,7 @@ comments:
  * extract data using Openstack Nova API
  * configured with /etc/osssmrc
  * outputs logging into the file configured as "logfile_path"
- * spool data to "spoolfile_path" for further use by osssm.push
+ * spool data to "spooldir_path" for further use by osssm.push
 """
 
 import ConfigParser
@@ -17,6 +17,7 @@ import os
 import sys
 import logging
 import copy
+import pprint
 
 sys.path.append('/usr/share/pyshared')
 from osssm import *
@@ -36,7 +37,7 @@ for item in (
     'gocdb_sitename', 
     'zone_name', 
     'cloud_type',
-    'spoolfile_path',
+    'spooldir_path',
     'ssm_input_header', 
     'ssm_input_sep', 
     'ssm_input_path' 
@@ -54,10 +55,13 @@ logging.debug( 'configuration: %s' % pprint.pformat( loggedconf ) )
 
 
 # get spooled urs
-spooled_urs = get_spooled_urs( config )
+extract = get_spooled_urs( config )
+
+# timestamp pass
+lastrun = last_run(config)
+timestamp_lastrun(config)
 
 # loop over configured tenants
-extract = {}
 tenants = config['tenants'].split(',')
 for tenant in tenants:
 
@@ -78,29 +82,25 @@ for tenant in tenants:
 
     logging.debug( 'extracting accounting for tenant %s' % tenant )
 
-    # get instances usages
-    period_start = time.strftime( stu_date_format, time.gmtime(0))
-    logging.debug( 'extracting records since: %s' % period_start )
-    usages = get_json_response( conn, "%s/os-simple-tenant-usage/%s" % ( url_path, tenant_id ), { "start": period_start }, headers )
+    # get instances details for changed status servers since last pass
+    changed_details = get_json_response( conn, "%s/servers/detail" % url_path, { "changes-since": lastrun }, headers ) 
+    logging.debug('details of servers changed since %s: %s' % (lastrun, changed_details))
 
-    # get instances details
-    details = get_json_response( conn, "%s/servers/detail" % url_path, {}, headers ) 
+    # get instances usages since the oldest VM creation time
+    oldest_creation = oldest_vm_start( config, extract, lastrun )
+    logging.debug( 'extracting records since: %s (oldest accounted VM)' % oldest_creation )
+    usages = get_json_response( conn, "%s/os-simple-tenant-usage/%s" % ( url_path, tenant_id ), { "start": oldest_creation }, headers )
+    logging.debug('usages since oldest creation: %s' % usages)
 
     # get images ids/names available to that user
-    images = get_images_ids( conn, tenant_id, details, headers, url_path )
+    images = get_images_ids( conn, tenant_id, changed_details, headers, url_path )
 
     # translate ids
-    if len(usages['tenant_usage']) != 0 and len(details['servers']) != 0:
-        extract.update( compute_extract( usages, details, config, images, tenant, spooled_urs ) )
-    else:
-        logging.info('no usage records for tenant <%s>' % tenant)
+    compute_extract( usages, changed_details, config, images, tenant, extract )
 
 
 logging.debug('closing connection')
 conn.close()
 
-# merge to spooled usage records
-merged = merge_records( extract, config )
-
 # write usage records to spool file
-write_to_spool( merged, config )
+write_to_spool( extract, config )

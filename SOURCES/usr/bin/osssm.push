@@ -35,7 +35,7 @@ for item in (
     'ssm_input_header', 
     'ssm_input_sep', 
     'ssm_input_path',
-    'spoolfile_path'
+    'spooldir_path'
     ):
     config[item] = conf.get( 'Main', item )
 
@@ -48,8 +48,10 @@ loggedconf['password'] = dummy
 logging.debug( 'configuration: %s' % pprint.pformat( loggedconf ) )
 
 # read spooled usage records
-spooled_ur = get_spooled_urs( config )
+spool = get_spooled_urs( config )
 
 # forward to SSM
-write_to_ssm( spooled_ur, config )
+write_to_ssm( spool, config )
 logging.info('records successfully wrote to SSM file <%s>' % config['ssm_input_path'])
+unspool_terminated_vms( spool )
+write_to_spool( spool, config )

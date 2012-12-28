@@ -18,7 +18,7 @@ import datetime
 import urlparse
 import pprint
 import copy
-
+import os.path
 
 # translate openstack statuses to EGI FCTF WG4 ones
 openstack_vm_statuses = {
@@ -127,79 +127,80 @@ def get_images_ids( conn, userid, instances, headers, url_path ):
 
 
 
-# process json entries and returns what has to be output to SSM
-def compute_extract( usages, details, config, images, tenant, spooled_urs ):
-    extract = {}
-    now = datetime.datetime.now()
 
-    logging.debug('extracting data from "extras/usage" query')
-    for instance in usages['tenant_usage']['server_usages']:
-        logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
+def compute_extract( usages, details, config, images, tenant, spool ):
 
-        # skip already accounted ended VMs
-        if instance['ended_at'] != None and spooled_urs.has_key(instance['name']) and spooled_urs[instance['name']]['EndTime'] != None:
-            logging.debug('skip ended VM <%s>' % instance['name'])
-            continue
+    # spool new URs (those related to new VMs)
+    logging.debug('extracting data from "details" query')
+    for instance in details['servers']:
+        if not spool.has_key(instance['id']):
 
-        started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
-        delta = now - started
-        extract[instance['name']] = {
-                'RecordId':           nullValue,
+            logging.debug('adding new record to spool for instance id <%s>' % instance['id'])
+            spool[instance['id']] = {
+                'RecordId':           instance['id'],
                 'SiteName':           config['gocdb_sitename'],
                 'ZoneName':           config['zone_name'],
                 'MachineName':        instance['name'], 
-                'LocalUserId':        nullValue,
-                'LocalGroupId':       nullValue,
+                'LocalUserId':        instance['user_id'],
+                'LocalGroupId':       tenant,
                 'GlobalUserName':     nullValue,
                 'FQAN':               nullValue,
-                'StartTime':          started.strftime("%s"),
+                'Status':             nullValue,
+                'StartTime':          nullValue,
                 'EndTime':            nullValue, 
                 'SuspendTime':        nullValue,
                 'TimeZone':           time.tzname[1] if time.daylight != 0 else time.tzname[0],
-                'WallDuration':       delta.seconds + delta.days * 24 * 3600,
-                'CpuDuration':        int(instance['hours']),
-                'CpuCount':           instance['vcpus'],
+                'WallDuration':       nullValue,
+                'CpuDuration':        nullValue,
+                'CpuCount':           nullValue,
                 'NetworkType':        nullValue,
                 'NetworkInbound':     nullValue,
                 'NetworkOutbound':    nullValue,
-                'Memory':             instance['memory_mb'],
-                'Disk':               instance['local_gb'],
+                'Memory':             nullValue,
+                'Disk':               nullValue,
                 'StorageRecordId':    nullValue,
                 'ImageId':            nullValue,
                 'CloudType':          config['cloud_type'],
                 }
+
+            try:
+                logging.debug('trying to find out image id (depends on afterward deletion)')
+                imid = str(instance['image']['id'])
+                spool[instance['id']]['ImageId'] = images[imid]
+            except:
+                logging.debug( "image id=%s not available in glance anymore" % imid )
+                spool[instance['id']]['ImageId'] = imid
+
+        else:
+            logging.debug('VM <%s> status has changed' % instance['id'])
+
+    logging.debug('extracting data from "os-simple-usage" query')
+    now = datetime.datetime.now()
+    for instance in usages['tenant_usage']['server_usages']:
+        logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
+
+        if not spool.has_key(instance['instance_id']):
+            logging.info('skipping VM <%s> for which nothing is accounted' % instance['instance_id'])
+            continue
+
+        started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
+        delta = now - started
+        spool[instance['instance_id']]['StartTime']     = started.strftime("%s")
+        spool[instance['instance_id']]['WallDuration']  = delta.seconds + delta.days * 24 * 3600
+        spool[instance['instance_id']]['CpuDuration']   = int(instance['hours'])
+        spool[instance['instance_id']]['CpuCount']      = instance['vcpus']
+        spool[instance['instance_id']]['Memory']        = instance['memory_mb']
+        spool[instance['instance_id']]['Disk']          = instance['local_gb']
+        if instance['ended_at'] != None:
+            ended = datetime.datetime.strptime( instance['ended_at'], "%Y-%m-%d %H:%M:%S" )
+            spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
+        
         try:
-            extract[instance['name']]['Status'] = openstack_vm_statuses[instance['state']]
+            spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
         except:
             logging.error( "unknown state <%s>" % instance['state'] )
-            extract[instance['name']]['Status'] = 'unknown'
+            spool[instance['instance_id']]['Status'] = 'unknown'
 
-    logging.debug('extracting data from "servers/detail" query')
-    for instance in details['servers']:
-        logging.debug('extracting data for instance %s server detail: %s' % (instance['name'], instance))
-        try:
-            extract[instance['name']]['RecordId'] = time.strftime("%Y-%m-%d %H:%M:%S%z") + ' ' + config['gocdb_sitename'] + ' ' + instance['name']
-            extract[instance['name']]['LocalUserId'] = instance['user_id']
-            extract[instance['name']]['LocalGroupId'] = tenant
-        except:
-            logging.info("instance <%s> has no usage records available" % instance['name'] )
-            if extract.has_key(instance['name']):
-                del extract[instance['name']]
-            continue
-        try:
-            imid = str(instance['image']['id'])
-            extract[instance['name']]['ImageId'] = images[imid]
-        except:
-            logging.debug( "image id=%s not available in glance anymore" % imid )
-            extract[instance['name']]['ImageId'] = imid
-
-    # delete dummy records
-    for instance in extract.keys():
-        if extract[instance]['RecordId'] == nullValue or extract[instance]['SiteName'] == nullValue or extract[instance]['MachineName'] == nullValue:
-            logging.warning('filtered instance <%s> because of bad RecordId=<%s>, Sitename=<%s>, MachineName=<%s>' % (instance,  extract[instance]['RecordId'],  extract[instance]['SiteName'],  extract[instance]['MachineName']))
-            del extract[instance]
-
-    return extract
 
 
 def write_to_ssm( extract, config ):
@@ -218,7 +219,7 @@ def write_to_ssm( extract, config ):
             output += config['ssm_input_sep'] + "\n"
 
         # write file
-        f = open( config['ssm_input_path'], 'w' )
+        f = open( os.path.expanduser(config['ssm_input_path']), 'w' )
         f.write(output)
         f.close()
     else:
@@ -232,8 +233,8 @@ def write_to_spool( extract, config ):
     data = json.dumps(extract)
     logging.debug("dumping extract to json format: <%s>" % data)
 
-    # write to file
-    outfile = os.path.expanduser(config['spoolfile_path'])
+    # write to file    
+    outfile = os.path.expanduser(config['spooldir_path'] + '/servers')
     try:        
         f = open( outfile, 'w' )
         f.write(data)
@@ -249,14 +250,14 @@ def get_spooled_urs( config ):
 
     spooled_ur = None
     try:
-        infile = os.path.expanduser(config['spoolfile_path'])
+        infile = os.path.expanduser(config['spooldir_path'] + '/servers')
         f = open( infile, 'r' )
         data = f.read()
         f.close()
         spooled_ur = json.loads(data)
-        logging.debug("spooled URs have been read successfully")
+        logging.debug("spooled URs have been read successfully: %s" % spooled_ur)
     except:
-        logging.error("an error occured while reading the spool file")
+        logging.error("an error occured while reading the spool file <%s>" % infile)
     if spooled_ur == None:
         spooled_ur = {}
     
@@ -272,3 +273,61 @@ def merge_records( new_urs, config ):
     spooled_urs.update( new_urs )
     
     return spooled_urs
+
+
+def timestamp_lastrun( config ):
+    """touch timestamp in the spool directory"""
+
+    timestamp = os.path.expanduser(config['spooldir_path'] + '/timestamp')
+    try:
+        open(timestamp, "w").close()
+        logging.debug("touched timestamp <%s>" % timestamp)
+    except:
+        logging.error("unable to touch timestamp file <%s>" % timestamp)
+
+
+def last_run( config ):
+    """returns timestamp of the last extract pass, now if non-existent (stu_date_format)"""
+
+    timestamp = os.path.expanduser(config['spooldir_path'] + '/timestamp')
+
+    if os.path.exists(timestamp):        
+        date = os.path.getmtime(timestamp)
+    else:
+        logging.debug("no timestamped loged run, return *now*")
+        date = None
+
+    lastrun = time.strftime( stu_date_format, time.gmtime(date) )
+    logging.debug("last loged run at <%s>" % lastrun)
+    return lastrun
+
+
+def oldest_vm_start( config, spooled_servers, lastrun ):
+    """returns the oldest accounted VM creation time (stu_date_format)"""
+
+    # get creation dates for spooled VMs records
+    spooled_creations = []
+    for vm in spooled_servers.keys():
+        start = spooled_servers[vm]['StartTime']
+        if start != nullValue:
+            spooled_creations += [ int(start) ]
+    spooled_creations.sort()
+
+    # if no spooled VM, test current VMs
+    if spooled_creations == None or len(spooled_creations) == 0:
+        logging.debug("no spooled VMs, return last run")
+        oldest = lastrun
+    else:
+        oldest = time.strftime( stu_date_format, time.gmtime(spooled_creations[0]) )
+    logging.debug("oldest_vm_start -> %s" % oldest)
+    return oldest
+        
+
+
+def unspool_terminated_vms( spool ):
+    """remove terminated VMs from the spool. This should occur only when VM usage record
+       has been successfully forwarded to SSM"""
+
+    for vmid in spool.keys():
+        if spool[vmid]['Status'] == 'completed' or spool[vmid]['Status'] == 'error':
+            del spool[vmid]
