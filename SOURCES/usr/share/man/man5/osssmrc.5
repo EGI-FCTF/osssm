@@ -2,7 +2,7 @@
 .\"http://sourceforge.net/projects/gmanedit2
 
 .\"Replace <program> with the program name, x with the Section Number
-.TH osssmrc 5 "2012/04/28" "" 
+.TH osssmrc 5 "2013/02/22" "osssm-1.16" 
 .SH NAME
 osssmrc \- APEL/SSM Openstack connector (osssm) configuration file
 
@@ -41,10 +41,6 @@ The configuration file is made of a single section [Main].
 .IP \fBgocdb_sitename\fR
   the sitename reported into the accounting records. It should match the GOCDB sitename.
 
-.IP \fBzone_name\fR
-  location
-  example: EU|US|...
-
 .IP \fBcloud_type\fR
   cloud manager reported into the accounting records 
   example: Openstack
@@ -58,8 +54,8 @@ The configuration file is made of a single section [Main].
   example: %%
 
 .IP \fBssm_input_path\fR
-  path to the SSM input file
-  example: /opt/apel/ssm/messages/outgoing/osssm
+  path to the SSM input base directory
+  example: /var/spool/apel/outgoing
 
 .SH "AUTHOR(S)"
 .na

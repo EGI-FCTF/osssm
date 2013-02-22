@@ -13,11 +13,10 @@ tenants = ###TENANT_NAME_LIST###
 
 gocdb_sitename = ###SITE_NAME###
 
-# location (EU, US...)
-zone_name = ###ZONE###
+# cloud management platform
 cloud_type = Openstack
 
 # SSM related
-ssm_input_header = APEL-cloud-message: v0.1
+ssm_input_header = APEL-cloud-message: v0.2
 ssm_input_sep = %%
 ssm_input_path = /opt/apel/ssm/messages/outgoing/openstack

@@ -19,6 +19,7 @@ import urlparse
 import pprint
 import copy
 import os.path
+from dirq.QueueSimple import QueueSimple
 
 # translate openstack statuses to EGI FCTF WG4 ones
 openstack_vm_statuses = {
@@ -33,7 +34,7 @@ openstack_vm_statuses = {
     'terminated' : 'completed',
 }
 nullValue = 'NULL'
-orderedFields = [ 'RecordId', 'SiteName', 'ZoneName', 'MachineName', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendTime', 'TimeZone', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
+orderedFields = [ 'VMUUID', 'Site', 'LocalVMID', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendDuration', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
 stu_date_format = '%Y-%m-%d %H:%M:%S.0'
 
 dummy = '##########'
@@ -137,10 +138,9 @@ def compute_extract( usages, details, config, images, tenant, spool ):
 
             logging.debug('adding new record to spool for instance id <%s>' % instance['id'])
             spool[instance['id']] = {
-                'RecordId':           instance['id'],
-                'SiteName':           config['gocdb_sitename'],
-                'ZoneName':           config['zone_name'],
-                'MachineName':        instance['name'], 
+                'VMUUID':             instance['id'],
+                'Site':               config['gocdb_sitename'],
+                'LocalVMID':          instance['name'], 
                 'LocalUserId':        instance['user_id'],
                 'LocalGroupId':       tenant,
                 'GlobalUserName':     nullValue,
@@ -148,8 +148,7 @@ def compute_extract( usages, details, config, images, tenant, spool ):
                 'Status':             nullValue,
                 'StartTime':          nullValue,
                 'EndTime':            nullValue, 
-                'SuspendTime':        nullValue,
-                'TimeZone':           time.tzname[1] if time.daylight != 0 else time.tzname[0],
+                'SuspendDuration':    nullValue,
                 'WallDuration':       nullValue,
                 'CpuDuration':        nullValue,
                 'CpuCount':           nullValue,
@@ -176,35 +175,41 @@ def compute_extract( usages, details, config, images, tenant, spool ):
 
     logging.debug('extracting data from "os-simple-usage" query')
     now = datetime.datetime.now()
-    for instance in usages['tenant_usage']['server_usages']:
-        logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
+    if usages['tenant_usage'].has_key('server_usages'):
+        for instance in usages['tenant_usage']['server_usages']:
+            logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
 
-        if not spool.has_key(instance['instance_id']):
-            logging.info('skipping VM <%s> for which nothing is accounted' % instance['instance_id'])
-            continue
+            if not spool.has_key(instance['instance_id']):
+                logging.info('skipping VM <%s> for which nothing is accounted' % instance['instance_id'])
+                continue
 
-        started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
-        delta = now - started
-        spool[instance['instance_id']]['StartTime']     = started.strftime("%s")
-        spool[instance['instance_id']]['WallDuration']  = delta.seconds + delta.days * 24 * 3600
-        spool[instance['instance_id']]['CpuDuration']   = int(instance['hours'])
-        spool[instance['instance_id']]['CpuCount']      = instance['vcpus']
-        spool[instance['instance_id']]['Memory']        = instance['memory_mb']
-        spool[instance['instance_id']]['Disk']          = instance['local_gb']
-        if instance['ended_at'] != None:
-            ended = datetime.datetime.strptime( instance['ended_at'], "%Y-%m-%d %H:%M:%S" )
-            spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
+            started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
+            delta = now - started
+            spool[instance['instance_id']]['StartTime']     = started.strftime("%s")
+            spool[instance['instance_id']]['WallDuration']  = delta.seconds + delta.days * 24 * 3600
+            spool[instance['instance_id']]['CpuDuration']   = int(instance['hours'])
+            spool[instance['instance_id']]['CpuCount']      = instance['vcpus']
+            spool[instance['instance_id']]['Memory']        = instance['memory_mb']
+            spool[instance['instance_id']]['Disk']          = instance['local_gb']
+            if instance['ended_at'] != None:
+                ended = datetime.datetime.strptime( instance['ended_at'], "%Y-%m-%d %H:%M:%S" )
+                spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
         
-        try:
-            spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
-        except:
-            logging.error( "unknown state <%s>" % instance['state'] )
-            spool[instance['instance_id']]['Status'] = 'unknown'
+                try:
+                    spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
+                except:
+                    logging.error( "unknown state <%s>" % instance['state'] )
+                    spool[instance['instance_id']]['Status'] = 'unknown'
 
 
 
 def write_to_ssm( extract, config ):
     """forwards usage records to SSM"""
+
+    # ensure outgoing directory existence
+    ssm_input_path = os.path.expanduser(config['ssm_input_path'])
+    if not os.access(ssm_input_path, os.F_OK):
+        os.makedirs(ssm_input_path, 0755)
     
     # only write non void URs file
     if len(extract) > 0:
@@ -219,9 +224,11 @@ def write_to_ssm( extract, config ):
             output += config['ssm_input_sep'] + "\n"
 
         # write file
-        f = open( os.path.expanduser(config['ssm_input_path']), 'w' )
-        f.write(output)
-        f.close()
+        try:
+            dirq = QueueSimple(ssm_input_path)
+            dirq.add(output)
+        except:
+            logging.error('unable to push message in apel-ssm queue <%s>' % ssm_input_path)
     else:
         logging.debug('no usage records, skip forwarding to SSM')
 

@@ -1,13 +1,13 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.15
+Version: 1.16
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
 License: GPL2
 BuildRoot: %{_builddir}/apel-ssm-openstack
 BuildArch: noarch
-Requires: ssm, python
+Requires: apel-ssm, python, python-dirq
 
 
 
@@ -61,6 +61,16 @@ true
 
 
 %changelog
+* Fri Feb 22 2013 Mattieu Puel 1.16-1
+- compatible with SSM v2
+- upgrade to usage records v0.2:
+  - RecordId renamed VMUUID, contains a proper uuid
+  - SiteName renamed Site, same content
+  - removed ZoneName
+  - remove TimeZone
+  - MachineName renamed to LocalVMID
+  - SuspendTime move to SuspendDuration (epoch time becomes a duration)
+- configuration option ssm_input_path now points to a directory, not a file
 * Fri Dec 28 2012 Mattieu Puel 1.15-1
 - optimization: do not extract all urs from nova since epoch 
 - configuration parameter: spoolfile_path changed to spooldir_path
