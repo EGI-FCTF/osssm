@@ -2,6 +2,6 @@ The Debian Package apel-ssm-openstack
 ----------------------------
 
 * check github source at https://github.com/EGI-FCTF/osssm
-* check binaries at ftp://ftp.in2p3.fr/ccin2p3/egi-acct-osdriver/
+* check binaries at ftp://ftp.in2p3.fr/ccin2p3/egi-fctf/apel-ssm-openstack
 
  -- Mattieu Puel <mpuel@in2p3.fr>  Sun, 23 Sep 2012 10:41:10 +0200

@@ -34,7 +34,7 @@ openstack_vm_statuses = {
     'terminated' : 'completed',
 }
 nullValue = 'NULL'
-orderedFields = [ 'VMUUID', 'Site', 'LocalVMID', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendDuration', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
+orderedFields = [ 'VMUUID', 'SiteName', 'MachineName', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendDuration', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
 stu_date_format = '%Y-%m-%d %H:%M:%S.0'
 
 dummy = '##########'
@@ -139,8 +139,8 @@ def compute_extract( usages, details, config, images, tenant, spool ):
             logging.debug('adding new record to spool for instance id <%s>' % instance['id'])
             spool[instance['id']] = {
                 'VMUUID':             instance['id'],
-                'Site':               config['gocdb_sitename'],
-                'LocalVMID':          instance['name'], 
+                'SiteName':           config['gocdb_sitename'],
+                'MachineName':        instance['name'], 
                 'LocalUserId':        instance['user_id'],
                 'LocalGroupId':       tenant,
                 'GlobalUserName':     nullValue,
@@ -195,11 +195,11 @@ def compute_extract( usages, details, config, images, tenant, spool ):
                 ended = datetime.datetime.strptime( instance['ended_at'], "%Y-%m-%d %H:%M:%S" )
                 spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
         
-                try:
-                    spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
-                except:
-                    logging.error( "unknown state <%s>" % instance['state'] )
-                    spool[instance['instance_id']]['Status'] = 'unknown'
+            try:
+                spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
+            except:
+                logging.error( "unknown state <%s>" % instance['state'] )
+                spool[instance['instance_id']]['Status'] = 'unknown'
 
 
 

@@ -1,3 +1,4 @@
+%define _unpackaged_files_terminate_build 0
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
 Version: 1.16
