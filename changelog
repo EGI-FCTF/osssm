@@ -1,3 +1,7 @@
+* Mon Mar 4 2013 Mattieu Puel 1.16-2
+- modified two wrong field names:
+  - Site -> SiteName
+  - LocalVMID -> MachineName
 * Fri Feb 22 2013 Mattieu Puel 1.16-1
 - compatible with SSM v2
 - upgrade to usage records v0.2:

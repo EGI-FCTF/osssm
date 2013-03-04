@@ -2,7 +2,7 @@
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
 Version: 1.16
-Release: 1
+Release: 2
 Group: Applications/System
 Packager: Mattieu Puel
 License: GPL2
@@ -62,6 +62,10 @@ true
 
 
 %changelog
+* Mon Mar 4 2013 Mattieu Puel 1.16-2
+- modified two wrong field names:
+  - Site -> SiteName
+  - LocalVMID -> MachineName
 * Fri Feb 22 2013 Mattieu Puel 1.16-1
 - compatible with SSM v2
 - upgrade to usage records v0.2:
