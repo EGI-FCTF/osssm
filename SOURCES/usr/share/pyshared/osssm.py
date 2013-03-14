@@ -20,6 +20,7 @@ import pprint
 import copy
 import os.path
 from dirq.QueueSimple import QueueSimple
+from dateutil import parser
 
 # translate openstack statuses to EGI FCTF WG4 ones
 openstack_vm_statuses = {
@@ -180,10 +181,10 @@ def compute_extract( usages, details, config, images, tenant, spool ):
             logging.debug('extracting data for instance %s usage: %s' % (instance['name'], instance))
 
             if not spool.has_key(instance['instance_id']):
-                logging.info('skipping VM <%s> for which nothing is accounted' % instance['instance_id'])
+                logging.debug('skipping VM <%s> for which nothing is accounted' % instance['instance_id'])
                 continue
 
-            started = datetime.datetime.strptime( instance['started_at'], "%Y-%m-%d %H:%M:%S" )
+            started = parser.parse( instance['started_at'] )
             delta = now - started
             spool[instance['instance_id']]['StartTime']     = started.strftime("%s")
             spool[instance['instance_id']]['WallDuration']  = delta.seconds + delta.days * 24 * 3600
@@ -192,7 +193,7 @@ def compute_extract( usages, details, config, images, tenant, spool ):
             spool[instance['instance_id']]['Memory']        = instance['memory_mb']
             spool[instance['instance_id']]['Disk']          = instance['local_gb']
             if instance['ended_at'] != None:
-                ended = datetime.datetime.strptime( instance['ended_at'], "%Y-%m-%d %H:%M:%S" )
+                ended = parser.parse( instance['ended_at'] )
                 spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
         
             try:

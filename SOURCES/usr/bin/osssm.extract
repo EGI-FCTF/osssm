@@ -35,7 +35,6 @@ for item in (
     'debug_level', 
     'tenants', 
     'gocdb_sitename', 
-    'zone_name', 
     'cloud_type',
     'spooldir_path',
     'ssm_input_header', 
