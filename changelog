@@ -1,3 +1,6 @@
+* Tue Mar 14 2013 Mattieu Puel 1.17-1
+- BUG: date format difference between Essex and Folsom
+- BUG: removed zone_name from required osssmrc parameters
 * Mon Mar 4 2013 Mattieu Puel 1.16-2
 - modified two wrong field names:
   - Site -> SiteName
