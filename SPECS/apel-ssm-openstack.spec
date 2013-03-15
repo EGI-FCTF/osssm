@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.17
+Version: 1.18
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -62,7 +62,9 @@ true
 
 
 %changelog
-* Tue Mar 14 2013 Mattieu Puel 1.17-1
+* Fri Mar 15 2013 Mattieu Puel 1.18-1
+- corrected returned image id if not available: "unavailable" -> "NULL"
+* Thu Mar 14 2013 Mattieu Puel 1.17-1
 - BUG: date format difference between Essex and Folsom
 - BUG: removed zone_name from required osssmrc parameters
 * Mon Mar 4 2013 Mattieu Puel 1.16-2

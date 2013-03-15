@@ -1,3 +1,6 @@
+apel-ssm-openstack (1.18-1) stable; urgency=low
+  - corrected returned image id if not available: "unavailable" -> "NULL"
+ -- mattieu puel <mpuel@in2p3.fr> fri, 15 feb 2013 08:00:10 +0200
 apel-ssm-openstack (1.16-2) stable; urgency=low
   - modified two wrong field names:
     - Site -> SiteName
