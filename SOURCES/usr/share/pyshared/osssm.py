@@ -121,7 +121,7 @@ def get_images_ids( conn, userid, instances, headers, url_path ):
                 logging.debug("found image <name=%s, id=%s>" % ( imname, imid ) )
             except:
                 logging.debug("no available information for instance image, skip")
-                images[imid] = "unavailable"
+                images[imid] = nullValue
                 
 
     logging.debug( "available images: %s" + str(images) )
