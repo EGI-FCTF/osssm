@@ -33,7 +33,7 @@ rsync --exclude .svn -av %{_sourcedir}/ $RPM_BUILD_ROOT/
 %defattr(0755,root,root)
 /usr/bin/osssm.extract
 /usr/bin/osssm.push
-/etc/rc.d/init.d/osssm
+/etc/init.d/osssm
 %defattr(0644,root,root)
 /etc/logrotate.d/osssm
 /var/lib/osssm/cron
@@ -62,6 +62,8 @@ true
 
 
 %changelog
+* next
+- moved rc script to /etc/init.d for debian systems compatibility
 * Fri Mar 15 2013 Mattieu Puel 1.18-1
 - corrected returned image id if not available: "unavailable" -> "NULL"
 * Thu Mar 14 2013 Mattieu Puel 1.17-1

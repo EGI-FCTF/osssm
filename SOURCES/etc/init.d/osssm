@@ -1,0 +1,97 @@
+#!/bin/bash 
+#
+# osssm service 
+#
+# Written by Mattieu Puel <mpuel@in2p3.fr>.
+#
+# chkconfig: 345 99 0
+# description: APEL/SSM Openstack connector 
+#
+# config: /etc/osssmrc
+# compatible to debian systems
+
+# for debian systems, reimplement some functions
+success()
+{
+    echo -n "ok"
+}
+
+failure()
+{
+    echo -n "error"
+    return 1
+}
+
+[ -e /etc/rc.d/init.d/functions ] && source /etc/rc.d/init.d/functions
+cron_template=/var/lib/osssm/cron
+cron_target=/etc/cron.d/osssm
+prog=osssm
+[ -e /etc/init.d/crond ] && cronserv=crond || cronserv=cron
+
+RETVAL=0
+desc="Openstack EGI accounting"
+
+start() {
+        echo -n $"Starting $desc: "
+
+        id apel &> /dev/null || { echo "apel user missing, check ssm installation, abort"; return 1; }
+
+        install -m 444 $cron_template $cron_target
+        RETVAL=$?
+
+        service $cronserv reload &> /dev/null
+        let RETVAL+=$?
+
+        [ $RETVAL -eq 0 ] && success || failure
+        echo
+
+        [ -e /var/lock/subsys -a $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+stop() {
+        echo -n $"Stopping $desc: "
+        rm -f $cron_target
+        RETVAL=$?
+
+        service $cronserv reload &> /dev/null
+        let RETVAL+=$?
+
+        [ $RETVAL -eq 0 ] && success || failure
+        echo        
+        [ -e /var/lock/subsys -a $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+restart() {
+        stop
+        start
+}
+
+
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart)
+        restart
+        ;;
+  status)
+        if [ -e $cron_target ]
+            then
+            echo "osssm is running..."
+            RETVAL=0
+        else
+            echo "osssm is stopped..."
+            RETVAL=1
+        fi
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart|status}"
+        RETVAL=1
+esac
+
+exit $RETVAL
