@@ -2,7 +2,7 @@
 .\"http://sourceforge.net/projects/gmanedit2
 
 .\"Replace <program> with the program name, x with the Section Number
-.TH osssmrc 5 "2013/02/22" "osssm-1.16" 
+.TH osssmrc 5 "2013/07/25" "osssm-1.19" 
 .SH NAME
 osssmrc \- APEL/SSM Openstack connector (osssm) configuration file
 
@@ -56,6 +56,10 @@ The configuration file is made of a single section [Main].
 .IP \fBssm_input_path\fR
   path to the SSM input base directory
   example: /var/spool/apel/outgoing
+
+.IP \fBvoms_tenants_mapping\fR
+  path to the Keystone VOMS auth mapping VO to tenant
+  example: voms_tenants_mapping = /etc/keystone/voms.json
 
 .SH "AUTHOR(S)"
 .na

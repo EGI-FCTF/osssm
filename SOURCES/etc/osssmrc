@@ -20,3 +20,6 @@ cloud_type = Openstack
 ssm_input_header = APEL-cloud-message: v0.2
 ssm_input_sep = %%
 ssm_input_path = /opt/apel/ssm/messages/outgoing/openstack
+
+# path to the VOMS/keystone auth configuration file
+voms_tenants_mapping = /etc/keystone/voms.json

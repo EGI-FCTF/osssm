@@ -23,16 +23,30 @@ from dirq.QueueSimple import QueueSimple
 from dateutil import parser
 
 # translate openstack statuses to EGI FCTF WG4 ones
+# extract from file api/openstack/common.py (_STATE_MAP)
+
 openstack_vm_statuses = {
-    'unknown':     'started',
-    'active':      'started',
-    'saving':      'started',
-    'paused':      'paused',
-    'suspended':   'suspended',
-    'error':       'error',
-    'deleted':     'completed',
-    'shutoff':     'completed',
-    'terminated' : 'completed',
+    'active':            'started',
+    'build':             'started',
+    'confirming_resize': 'started',
+    'deleted':           'completed', 
+    'error':             'error',
+    'hard_reboot':       'started',
+    'migrating':         'started',
+    'password':          'started',
+    'paused':            'paused',
+    'reboot':            'started',
+    'rebuild':           'started',
+    'rescue':            'started',
+    'resize':            'started',
+    'revert_resize':     'started',
+    'verify_resize':     'started',
+    'shutoff':           'completed',
+    'suspended':         'suspended',
+    'terminated' :       'completed',
+    'stopped':           'stopped',
+    'saving':            'started',
+    'unknown':           'unknown',
 }
 nullValue = 'NULL'
 orderedFields = [ 'VMUUID', 'SiteName', 'MachineName', 'LocalUserId', 'LocalGroupId', 'GlobalUserName', 'FQAN', 'Status', 'StartTime', 'EndTime', 'SuspendDuration', 'WallDuration', 'CpuDuration', 'CpuCount', 'NetworkType', 'NetworkInbound', 'NetworkOutbound', 'Memory', 'Disk', 'StorageRecordId', 'ImageId', 'CloudType' ]
@@ -52,13 +66,13 @@ def get_access_details( keystone_api_url, username, password, tenant ):
     url_path = urlparsed[2]
 
     params = '{ "auth": { "passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName": "%s"}}' % (username, password, tenant)
-    if urlparsed[0] == "https":                                                                        
-        conn = httplib.HTTPSConnection( url )                                                          
-    else:                                                                                              
-        conn = httplib.HTTPConnection( url )          
+    if urlparsed[0] == "https":
+        conn = httplib.HTTPSConnection( url )
+    else:
+        conn = httplib.HTTPConnection( url )
 
     # request for a token
-    request = "%s/%s" % (url_path,"tokens")
+    request = "%s/%s" % (url_path, "tokens")
     logging.debug('get_access_details(%s, %s, %s, %s)' % (keystone_api_url, username, dummy, tenant))
     conn.request("POST", request, params, {"Content-type": "application/json"} )
     response = (conn.getresponse()).read()
@@ -66,11 +80,15 @@ def get_access_details( keystone_api_url, username, password, tenant ):
 
     # list services endpoints beware, { a: b for i in } invalid in python v2.6
     services = {}
+    logging.debug(respjson)
     for s in respjson['access']['serviceCatalog']:
-        services[s['name']] = s['endpoints'][0]['publicURL']
+        services[s['name']] = {}
+        for type in ( 'publicURL', 'adminURL' ):
+            services[s['name']][type] = s['endpoints'][0][type]
     logging.debug('services found in the catalog: %s' % services)
     try:
-        nova_api_url = services['nova']
+        nova_api_url = services['nova']['publicURL']
+        keystone_adminapi_url = services['keystone']['adminURL']
         token = respjson['access']['token']['id']
         tenant_id = respjson['access']['token']['tenant']['id']
     except:
@@ -78,7 +96,7 @@ def get_access_details( keystone_api_url, username, password, tenant ):
         return (None, None, None)
 
     logging.debug("get_access_details returns <nova_api_url=%s, token=%s, tenant_id=%s>" % (nova_api_url, token, tenant_id) )
-    return ( nova_api_url, token, tenant_id )
+    return ( nova_api_url, keystone_adminapi_url, token, tenant_id )
 
 
 def get_json_response( conn, request, params, headers ):
@@ -128,9 +146,27 @@ def get_images_ids( conn, userid, instances, headers, url_path ):
     return images
 
 
+# returns a dict of user id/names in the form:
+# { 'id' => 'name', ... }
+def get_user_names( keystone_admin_url, token ):
+
+    urlp = urlparse.urlparse( keystone_admin_url )
+    url = urlp[1]
+    url_path = urlp[2]
+    conn = httplib.HTTPSConnection( url )
+
+    conn.request("GET", "%s/users" % url_path, urllib.urlencode({}), { "X-Auth-Token": token, "Content-type":"application/json" } )
+    response = (conn.getresponse()).read()
+    respjson = json.loads(response)
+
+    # no inline construct for hashes in python 2.6...
+    names = {}
+    for u in respjson['users']:
+        names[u['id']] = u['name']
+    return names
 
 
-def compute_extract( usages, details, config, images, tenant, spool ):
+def compute_extract( usages, details, config, images, users, vo, tenant, spool ):
 
     # spool new URs (those related to new VMs)
     logging.debug('extracting data from "details" query')
@@ -143,8 +179,7 @@ def compute_extract( usages, details, config, images, tenant, spool ):
                 'SiteName':           config['gocdb_sitename'],
                 'MachineName':        instance['name'], 
                 'LocalUserId':        instance['user_id'],
-                'LocalGroupId':       tenant,
-                'GlobalUserName':     nullValue,
+                'LocalGroupId':       instance['tenant_id'],
                 'FQAN':               nullValue,
                 'Status':             nullValue,
                 'StartTime':          nullValue,
@@ -161,6 +196,9 @@ def compute_extract( usages, details, config, images, tenant, spool ):
                 'StorageRecordId':    nullValue,
                 'ImageId':            nullValue,
                 'CloudType':          config['cloud_type'],
+                'VO':                 vo,
+                'VOGroup':            nullValue,
+                'VORole':             nullValue,
                 }
 
             try:
@@ -171,6 +209,12 @@ def compute_extract( usages, details, config, images, tenant, spool ):
                 logging.debug( "image id=%s not available in glance anymore" % imid )
                 spool[instance['id']]['ImageId'] = imid
 
+            try:
+                logging.debug('trying to find out user name (depends on afterward deletion)')
+                spool[instance['id']]['GlobalUserName'] = str(users[instance['user_id']])
+            except:
+                logging.debug( "user with id=%s is not available in keystone anymore" % instance['user_id'] )
+                spool[instance['id']]['GlobalUserName'] = instance['user_id']
         else:
             logging.debug('VM <%s> status has changed' % instance['id'])
 
@@ -339,3 +383,29 @@ def unspool_terminated_vms( spool ):
     for vmid in spool.keys():
         if spool[vmid]['Status'] == 'completed' or spool[vmid]['Status'] == 'error':
             del spool[vmid]
+
+def get_tenants_mapping( config ):
+    """read spooled usage records"""
+
+    voms_json = None
+    voms_tenants = {}
+    try:
+        infile = os.path.expanduser(config['voms_tenants_mapping'])
+        f = open( infile, 'r' )
+        data = f.read()
+        f.close()
+        voms_json = json.loads(data)
+        logging.debug("voms tenants mappings have been read successfully: %s" % voms_json)
+    except:
+        logging.error("an error occured while reading the voms tenants mapping file <%s>" % infile)
+    if voms_json == None:
+        voms_json = {}
+
+    for vo in voms_json.keys():
+        try:
+            voms_tenants[voms_json[vo]['tenant']] = vo
+            logging.debug('VO <%s> is mapped to tenant <%s>' % (vo, voms_json[vo]['tenant']))
+        except:
+            pass
+
+    return voms_tenants

@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: APEL/SSM Openstack connector
 Name: apel-ssm-openstack
-Version: 1.18
+Version: 1.19
 Release: 1
 Group: Applications/System
 Packager: Mattieu Puel
@@ -62,8 +62,17 @@ true
 
 
 %changelog
-* next
+* Thu Jul 25 2013 Mattieu Puel 1.19-1
 - moved rc script to /etc/init.d for debian systems compatibility
+- addition of "VO" field
+- added voms_tenants_mapping configuration option
+- field "LocalUserId"  now contains the openstack user id
+- field "LocalGroupId"  now contains the openstack group id
+- field "GlobalUserName" now contains the openstack user name (which is the DN with VOMs auth)
+- need for the role to list users (right "identity:list_users")
+- need an access to the admin keystone API
+- fixed some "None" status sent
+- added some openstack VMs statuses "stopped"...
 * Fri Mar 15 2013 Mattieu Puel 1.18-1
 - corrected returned image id if not available: "unavailable" -> "NULL"
 * Thu Mar 14 2013 Mattieu Puel 1.17-1

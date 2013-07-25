@@ -1,3 +1,16 @@
+apel-ssm-openstack (1.19-1) stable; urgency=low
+  - moved rc script to /etc/init.d for debian systems compatibility
+  - addition of "VO" field
+  - added voms_tenants_mapping configuration option
+  - field "LocalUserId"  now contains the openstack user id
+  - field "LocalGroupId"  now contains the openstack group id
+  - field "GlobalUserName" now contains the openstack user name (which is the DN with VOMs auth)
+  - need for the role to list users (right "identity:list_users")
+  - need an access to the admin keystone API
+  - fixed some "None" status sent
+  - added some openstack VMs statuses "stopped"...
+ -- mattieu puel <mpuel@in2p3.fr> thu, 25 jul 2013 00:00:00 +0200
+
 apel-ssm-openstack (1.18-1) stable; urgency=low
   - corrected returned image id if not available: "unavailable" -> "NULL"
  -- mattieu puel <mpuel@in2p3.fr> fri, 15 feb 2013 08:00:10 +0200

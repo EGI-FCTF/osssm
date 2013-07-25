@@ -39,7 +39,8 @@ for item in (
     'spooldir_path',
     'ssm_input_header', 
     'ssm_input_sep', 
-    'ssm_input_path' 
+    'ssm_input_path',
+    'voms_tenants_mapping',
     ):
     config[item] = conf.get( 'Main', item )
 
@@ -60,16 +61,18 @@ extract = get_spooled_urs( config )
 lastrun = last_run(config)
 timestamp_lastrun(config)
 
+voms_mapping = get_tenants_mapping( config )
+
 # loop over configured tenants
 tenants = config['tenants'].split(',')
 for tenant in tenants:
 
-    (url, token, tenant_id) = get_access_details(config['keystone_api_url'] ,config['user'], config['password'], tenant)
-    if url == None or token == None or tenant_id == None:
+    (nova_url, keystone_admin_url, token, tenant_id) = get_access_details(config['keystone_api_url'] ,config['user'], config['password'], tenant)
+    if nova_url == None or token == None or tenant_id == None:
         logging.error("skipping tenant <%s> usage records" % tenant)
         continue
 
-    urlp = urlparse.urlparse( url )
+    urlp = urlparse.urlparse( nova_url )
     url = urlp[1]
     url_path = urlp[2]
     headers = { "X-Auth-Token": token, "Content-type":"application/json" }
@@ -94,8 +97,20 @@ for tenant in tenants:
     # get images ids/names available to that user
     images = get_images_ids( conn, tenant_id, changed_details, headers, url_path )
 
+    # get users ids/names
+    users = get_user_names(keystone_admin_url, token)
+
+    # get vo
+    try:
+        vo = voms_mapping[tenant]
+        logging.debug('found VO <%s> mapped to tenant <%s>' % (vo, tenant))
+    except:
+        logging.debug('unable to find a VO for tenant <%s>' % tenant)
+        vo = nullValue
+    
+
     # translate ids
-    compute_extract( usages, changed_details, config, images, tenant, extract )
+    compute_extract( usages, changed_details, config, images, users, vo, tenant, extract )
 
 
 logging.debug('closing connection')
