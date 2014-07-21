@@ -180,7 +180,7 @@ def compute_extract( usages, details, config, images, users, vo, tenant, spool )
                 'MachineName':        instance['name'], 
                 'LocalUserId':        instance['user_id'],
                 'LocalGroupId':       instance['tenant_id'],
-                'FQAN':               nullValue,
+                'FQAN':               vo,
                 'Status':             nullValue,
                 'StartTime':          nullValue,
                 'EndTime':            nullValue, 
@@ -196,7 +196,7 @@ def compute_extract( usages, details, config, images, users, vo, tenant, spool )
                 'StorageRecordId':    nullValue,
                 'ImageId':            nullValue,
                 'CloudType':          config['cloud_type'],
-                'VO':                 vo,
+                'VO':                 nullValue,
                 'VOGroup':            nullValue,
                 'VORole':             nullValue,
                 }
