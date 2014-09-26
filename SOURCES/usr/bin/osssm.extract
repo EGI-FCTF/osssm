@@ -13,6 +13,7 @@ comments:
 """
 
 import ConfigParser
+import datetime
 import os
 import sys
 import logging
@@ -90,8 +91,9 @@ for tenant in tenants:
 
     # get instances usages since the oldest VM creation time
     oldest_creation = oldest_vm_start( config, extract, lastrun )
+    end = datetime.datetime.utcnow() + datetime.timedelta(days=1)
     logging.debug( 'extracting records since: %s (oldest accounted VM)' % oldest_creation )
-    usages = get_json_response( conn, "%s/os-simple-tenant-usage/%s" % ( url_path, tenant_id ), { "start": oldest_creation }, headers )
+    usages = get_json_response( conn, "%s/os-simple-tenant-usage/%s" % ( url_path, tenant_id ), { "start": oldest_creation, "end": end.strftime("%Y-%m-%d %H:%M:%S.%f") }, headers )
     logging.debug('usages since oldest creation: %s' % usages)
 
     # get images ids/names available to that user
