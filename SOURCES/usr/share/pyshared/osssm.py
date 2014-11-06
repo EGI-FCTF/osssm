@@ -239,6 +239,9 @@ def compute_extract( usages, details, config, images, users, vo, tenant, spool )
             if instance['ended_at'] != None:
                 ended = parser.parse( instance['ended_at'] )
                 spool[instance['instance_id']]['EndTime']   = ended.strftime("%s")
+                delta = ended - started
+                spool[instance['instance_id']]['WallDuration']  = delta.seconds + delta.days * 24 * 3600
+
         
             try:
                 spool[instance['instance_id']]['Status'] = openstack_vm_statuses[instance['state']]
