@@ -384,7 +384,7 @@ def unspool_terminated_vms( spool ):
        has been successfully forwarded to SSM"""
 
     for vmid in spool.keys():
-        if spool[vmid]['Status'] == 'completed' or spool[vmid]['Status'] == 'error':
+        if spool[vmid]['Status'] == 'completed' or spool[vmid]['Status'] == 'error' or  spool[vmid]['Status'] == 'NULL':
             del spool[vmid]
 
 def get_tenants_mapping( config ):
